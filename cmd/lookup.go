@@ -1,72 +1,67 @@
 package cmd
 
 import (
-    "fmt"
-    "context"
+	"context"
+	"fmt"
 	"net"
 	"time"
 
-    "github.com/urfave/cli/v3"
+	"github.com/urfave/cli/v3"
 )
 
-
 func Lookup(ctx context.Context, cmd *cli.Command) error {
-		domain := "alnoor-hajj.com"
-		record_type := "A"
-		if cmd.NArg() > 0 {
-			domain = cmd.Args().Get(0)
-		}
-		if cmd.String("type") == "TXT" {
-			record_type = "TXT"
-		}
-		if cmd.String("type") == "MX" {
-			record_type = "MX"
-		}
-		if cmd.String("type") == "NS" {
-			record_type = "NS"
-		}
-		if cmd.String("type") == "CNAME" {
-			record_type = "CNAME"
-		}
-		result ,err := QueryDNS(domain, "8.8.8.8", record_type)
-
-		if err != nil {
-			fmt.Print("Error")
-			return err
-		}
-		fmt.Printf("the ip for %s is: %s", domain, result)
-		return nil
+	domain := "alnoor-hajj.com"
+	recordType := "A"
+	if cmd.NArg() > 0 {
+		domain = cmd.Args().Get(0)
 	}
 
-func QueryDNS(domain, dnsServerIP string, record_type string) (string, error) {
+	// Override recordType if flag is set
+	if typeFlag := cmd.String("type"); typeFlag != "" {
+		recordType = typeFlag
+	}
+
+	result, err := QueryDNS(domain, "8.8.8.8", recordType)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("the ip for %s is: %s", domain, result)
+	return nil
+}
+
+func QueryDNS(domain, dnsServerIP string, recordType string) (string, error) {
 	dialer := &net.Dialer{
-		Timeout: 5 * time.Second,
-		LocalAddr: nil, 
+		Timeout:   5 * time.Second,
+		LocalAddr: nil,
 	}
 
 	resolver := &net.Resolver{
-		PreferGo: true, 
+		PreferGo: true,
 		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-			return dialer.DialContext(ctx, "udp", dnsServerIP+":53") 
+			return dialer.DialContext(ctx, "udp", dnsServerIP+":53")
 		},
-	} 
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	result := ""
+	var result string
 	var err error
 
-	if record_type == "A" {
+	switch recordType {
+	case "A":
 		result, err = queryA(ctx, domain, resolver)
-	} else if record_type == "CNAME" {
+	case "CNAME":
 		result, err = queryCNAME(ctx, domain, resolver)
-	} else if record_type == "NS" {
+	case "NS":
 		result, err = queryNS(ctx, domain, resolver)
-	} else if record_type == "TXT" {
+	case "TXT":
 		result, err = queryTXT(ctx, domain, resolver)
-	} else if record_type == "MX" {
+	case "MX":
 		result, err = queryMX(ctx, domain, resolver)
+	default:
+		// Default to A record
+		result, err = queryA(ctx, domain, resolver)
 	}
 	return result, err
 }
@@ -84,6 +79,7 @@ func queryA(ctx context.Context, domain string, resolver *net.Resolver) (string,
 	if err != nil {
 		return "", err
 	}
+	// Return the first IP found
 	return result[0].String(), err
 }
 
@@ -92,6 +88,7 @@ func queryTXT(ctx context.Context, domain string, resolver *net.Resolver) (strin
 	if err != nil {
 		return "", err
 	}
+	// Return the first TXT record found
 	return result[0], err
 }
 
@@ -100,14 +97,15 @@ func queryMX(ctx context.Context, domain string, resolver *net.Resolver) (string
 	if err != nil {
 		return "", err
 	}
+	// Return the host of the first MX record
 	return result[0].Host, err
 }
 
 func queryNS(ctx context.Context, domain string, resolver *net.Resolver) (string, error) {
-	
 	result, err := resolver.LookupNS(ctx, domain)
 	if err != nil {
 		return "", err
 	}
+	// Return the host of the first NS record
 	return result[0].Host, err
 }
