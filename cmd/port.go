@@ -12,7 +12,7 @@ import (
 
 func ScanPort(ctx context.Context, cmd *cli.Command) error {
 	domain := ""
-	port := ""
+	port := ""  
 	if cmd.NArg() > 0 {
 		domain = cmd.Args().Get(0)
 	}
