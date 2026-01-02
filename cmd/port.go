@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,29 +13,65 @@ import (
 
 func ScanPort(ctx context.Context, cmd *cli.Command) error {
 	domain := ""
-	port := ""  
+	port := cmd.String("port")
+
 	if cmd.NArg() > 0 {
-		domain = cmd.Args().Get(0)
-	}
-	if cmd.NArg() > 1 {
-		port = cmd.Args().Get(1)
+		domain = cmd.Args().First()
 	}
 
-	result, _ := scanPort(domain, port)
+	if port == "all" {
+		const maxPort = 9999
+		ports := make(chan int, 100)
+		results := make(chan int, 100)
 
-	fmt.Printf("the port %s for %s is: %s", port, domain, result)
+		for i := 0; i < 100; i++ {
+			go worker(ports, results, domain)
+		}
+
+		go func() {
+			for i := 1; i <= maxPort; i++ {
+				ports <- i
+			}
+			close(ports)
+		}()
+
+		for i := 1; i <= maxPort; i++ {
+			p := <-results
+			if p != 0 {
+				fmt.Println("Port open:", p)
+			}
+		}
+
+	} else {
+		if portIsOpen(domain, port) {
+			fmt.Println("Port open:", port)
+		} else {
+			fmt.Println("Port closed:", port)
+		}
+	}
+
 	return nil
 }
 
-func scanPort(domain, port string) (string, error) {
-	conn, err := net.DialTimeout("tcp", domain+":"+port, 10*time.Second)
+func worker(ports <-chan int, results chan<- int, domain string) {
+	for p := range ports {
+		if portIsOpen(domain, strconv.Itoa(p)) {
+			results <- p
+		} else {
+			results <- 0
+		}
+	}
+}
+
+func portIsOpen(domain, port string) bool {
+	address := net.JoinHostPort(domain, port)
+	conn, err := net.DialTimeout("tcp", address, 10*time.Second)
 	if err != nil {
 		if strings.Contains(err.Error(), "timeout") {
-			return "error timeout", err
+			return false
 		}
-		return "error connecting", err
+		return false
 	}
 	defer conn.Close()
-
-	return "open", nil
+	return true
 }

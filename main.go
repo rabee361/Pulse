@@ -14,7 +14,7 @@ func main() {
 	rootCmd := &cli.Command{
 		Commands: []*cli.Command{
 			{
-				Name:    "lookup",
+				Name: "lookup",
 				Aliases: []string{"l"},
 				Usage:   color.BlueString("custom tool to make dns checkup on domains"),
 				Action:  cmd.Lookup,
@@ -27,15 +27,15 @@ func main() {
 				},
 			},
 			{
-				Name:    "scan",
+				Name: "scan",
 				Aliases: []string{"s"},
 				Usage:   color.BlueString("custom tool to make port checkup on domains"),
 				Action:  cmd.ScanPort,
 				Flags: []cli.Flag{
 					&cli.StringFlag{
 						Name:  "port",
-						Value: "80",
-						Usage: "port to check (default: 80)",
+						Value: "all",
+						Usage: "port to check (default: all available)",
 					},
 				},
 			},

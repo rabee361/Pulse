@@ -1,4 +1,4 @@
-# NS Networking Tool 🌐
+# Pulse Networking Tool 🌐
 
 A lightweight, modular command-line utility for performing networking tasks like DNS lookups and port scanning.
 
